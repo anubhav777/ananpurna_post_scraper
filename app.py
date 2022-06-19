@@ -1,9 +1,12 @@
+from genericpath import exists
+from linecache import cache
 import requests
 import json
 import os
 import urllib
 from bs4 import BeautifulSoup
 import time
+import ast
 
 """applies color on terminal"""
 class colors:
@@ -41,7 +44,29 @@ class Input_Converter:
     def html_remover(text):
         cleantext = BeautifulSoup(text,'lxml').text
         return cleantext
-      
+    
+    '''cache saver'''
+    @staticmethod
+    def cache(text):
+        print(text)
+        with open('scraper_state.txt','w') as file:
+            file.write(text)
+     
+    '''cache remover'''
+    def cache_remover(self):
+        try:
+            os.remove('scraper_state.txt')
+        except:
+            pass
+    
+    '''reading cache files'''
+    def file_reader(filename):
+        response = None
+        with open(filename,'rt',encoding='UTF-8') as file:
+            response= file.readline()
+        return response
+            
+
 
 
 class Scrapper:
@@ -83,23 +108,25 @@ class Scrapper:
             except:
                 pass
 
+            '''saving cache state'''
+            try:
+                if self.next != None:
+                    print(f'{colors.purple}saving cahce state--->{colors.default}')
+                    new_obj = {'next_url':self.next}
+                    self.input_conv.cache(str(new_obj))
+            except:
+                pass
+
+            
             for data in res_data:
                 data['content'] = self.input_conv.html_remover(data['content'])
                 ret_data.append(data)
             return ret_data
 
         except:
-            return 'SOrry an error ocurred on the program. Exiting The program--->'
+            return 'Sorry an error ocurred on the program. Exiting The program--->'
         
-     
-    def search_func(self):
-        try:
-            search_value = input(f'{colors.green} Welcome to annapurna post scraper. Please input a value to search {colors.default}: ')
-            if len(search_value) < 1:
-                raise AttributeError            
-            response = self.data_getter(search_value)
-            print(response)
-            
+    def prev_next_func(self):
             '''while loop intiated for prev and next featur'''
             while self.prev != None or self.next != None:
                 time.sleep(2)
@@ -134,26 +161,61 @@ class Scrapper:
                         print(f'{colors.red}Sorry no other data to load.Exiting the program #####{colors.default}')
                         break
 
-                    '''executing previous scraper'''
+                    '''executing next scraper'''
                     new_response = self.data_getter(self.next,True)
+
                 
                 print(new_response)
-                
+    
+    def cache_rem(self):
+        #removing cahce as the program exists:
+            try:
+                print(f'{colors.purple}clearing scraper caches{colors.default}')
+                self.input_conv.cache_remover()
+            except:
+                pass
 
-                # if 
+    def search_func(self,**kwargs):
+        try:
+            search_value=kwargs.get('search',None)
+            cache_status = False
+            if search_value is None:
+                search_value = input(f'{colors.green} Welcome to annapurna post scraper. Please input a value to search {colors.default}: ')
+                if len(search_value) < 1:
+                    raise AttributeError
+            else:
+                cache_status = True
+                          
+            response = self.data_getter(search_value,cache_status)
+            print(response)
+            
+            '''intialting prev _next func'''
+            self.prev_next_func()
+            self.cache_rem()
 
-            # if not isinstance(search_value,str):
-            #     raise TypeError
+            
 
-
-        # except  TypeError:
-        #     print(f'{colors.red}Note: Please input valid characters {colors.default}') 
 
         except  AttributeError:
             print(f'{colors.red}Note:  One or more characters should be provided as the input {colors.default}')  
 
         except Exception as e:
             print(e)
+
+def main():
+    class_intiator = Scrapper()
+    cache_checker = os.path.exists('scraper_state.txt')
+    if cache_checker is not True:
+        class_intiator.search_func()
+    else:
+        file_reader = Input_Converter.file_reader('scraper_state.txt')
+        conv_obj = ast.literal_eval(file_reader)['next_url']
+        # res = class_intiator.data_getter(conv_obj,True)
+        # print(res)
+        class_intiator.search_func(search=conv_obj)
+
+        
+    print(cache_checker)
 if __name__ == '__main__':
-    Scrapper().search_func()
+   main()
 
